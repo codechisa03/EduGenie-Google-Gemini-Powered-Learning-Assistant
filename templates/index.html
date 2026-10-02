@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduGenie - AI Learning Assistant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Welcome to EduGenie 🧠✨</h1>
+            <p>Your personal AI tutor for learning support!</p>
+        </header>
+        
+        <main class="main-content">
+            <!-- QA Section -->
+            <div class="section">
+                <h3>Ask EduGenie a Question:</h3>
+                <form id="qa-form">
+                    <div class="input-group">
+                        <input type="text" id="qa-prompt" placeholder="Why is the sky blue?" required>
+                        <button type="submit" class="btn">Get Answer</button>
+                    </div>
+                </form>
+                <div class="result-box" id="qa-result"></div>
+            </div>
+
+            <!-- Explain Section -->
+            <div class="section">
+                <h3>Need an Explanation?</h3>
+                <form id="explain-form">
+                    <div class="input-group">
+                        <input type="text" id="explain-prompt" placeholder="Photosynthesis" required>
+                        <button type="submit" class="btn">Explain</button>
+                    </div>
+                </form>
+                <div class="result-box" id="explain-result"></div>
+            </div>
+
+            <!-- Summarize Section -->
+            <div class="section">
+                <h3>Summarize a Paragraph:</h3>
+                <form id="summarize-form">
+                    <div class="input-group">
+                        <input type="text" id="summarize-prompt" placeholder="Paste long content to summarize" required>
+                        <button type="submit" class="btn">Summarize</button>
+                    </div>
+                </form>
+                <div class="result-box" id="summarize-result"></div>
+            </div>
+
+            <!-- Quiz Section -->
+            <div class="section">
+                <h3>Generate a Quiz:</h3>
+                <form id="quiz-form">
+                    <div class="input-group">
+                        <input type="text" id="quiz-prompt" placeholder="Solar System" required>
+                        <button type="submit" class="btn">Generate Quiz</button>
+                    </div>
+                </form>
+                <div class="result-box" id="quiz-result"></div>
+            </div>
+
+            <!-- Learn Section -->
+            <div class="section">
+                <h3>Get Learning Recommendations:</h3>
+                <form id="learn-form">
+                    <div class="input-group">
+                        <input type="text" id="learn-prompt" placeholder="e.g. Linear Regression" required>
+                        <button type="submit" class="btn">Get Recommendations</button>
+                    </div>
+                </form>
+                <div class="result-box" id="learn-result"></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const converter = new showdown.Converter();
+
+        async function handleFormSubmit(e, endpoint, promptId, resultId, isQuiz = false) {
+            e.preventDefault();
+            const prompt = document.getElementById(promptId).value;
+            const resultBox = document.getElementById(resultId);
+            const btn = e.target.querySelector('button');
+            const originalBtnText = btn.innerText;
+
+            btn.disabled = true;
+            btn.innerText = 'Loading...';
+            resultBox.innerHTML = '';
+            
+            resultBox.style.display = 'block';
+            if (resultBox.offsetHeight < 40) {
+                resultBox.style.minHeight = '60px';
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('prompt', prompt);
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (isQuiz && data.result.quiz) {
+                    renderQuiz(data.result.quiz, resultBox);
+                } else if (isQuiz && data.result.error) {
+                    resultBox.innerHTML = `<div class="error-msg">${data.result.error}</div>`;
+                } else {
+                    let markedHtml = converter.makeHtml(data.result);
+                    markedHtml = markedHtml.replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ');
+                    resultBox.innerHTML = markedHtml;
+                }
+            } catch (error) {
+                resultBox.innerHTML = `<div class="error-msg">An error occurred: ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalBtnText;
+            }
+        }
+
+        document.getElementById('qa-form').addEventListener('submit', (e) => handleFormSubmit(e, '/qa', 'qa-prompt', 'qa-result'));
+        document.getElementById('explain-form').addEventListener('submit', (e) => handleFormSubmit(e, '/explain', 'explain-prompt', 'explain-result'));
+        document.getElementById('summarize-form').addEventListener('submit', (e) => handleFormSubmit(e, '/summarize', 'summarize-prompt', 'summarize-result'));
+        document.getElementById('quiz-form').addEventListener('submit', (e) => handleFormSubmit(e, '/quiz', 'quiz-prompt', 'quiz-result', true));
+        document.getElementById('learn-form').addEventListener('submit', (e) => handleFormSubmit(e, '/learn/recommendations', 'learn-prompt', 'learn-result'));
+
+        function renderQuiz(quizArray, container) {
+            let html = '<div class="quiz-container">';
+            quizArray.forEach((q, index) => {
+                const qId = Math.random().toString(36).substr(2, 9);
+                html += `
+                    <div class="quiz-question">
+                        <p class="question-text"><strong>Q${index + 1}:</strong> ${q.question}</p>
+                        <div class="options-container" id="q-${qId}">
+                            ${q.options.map((opt) => `
+                                <button class="quiz-option" onclick="checkAnswer('${qId}', '${opt.replace(/'/g, "\\'")}', '${q.answer.replace(/'/g, "\\'")}', this)">
+                                    ${opt}
+                                </button>
+                            `).join('')}
+                        </div>
+                        <div class="feedback" id="feedback-${qId}"></div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        window.checkAnswer = function(qId, selectedOpt, correctOpt, btnElement) {
+            const container = document.getElementById(`q-${qId}`);
+            const buttons = container.querySelectorAll('.quiz-option');
+            const feedback = document.getElementById(`feedback-${qId}`);
+            
+            buttons.forEach(btn => btn.disabled = true);
+            
+            if (selectedOpt === correctOpt) {
+                btnElement.classList.add('correct');
+                feedback.innerHTML = `<span style="color: green">Correct! 🎉</span>`;
+            } else {
+                btnElement.classList.add('incorrect');
+                feedback.innerHTML = `<span style="color: red">Incorrect. The correct answer was: <strong>${correctOpt}</strong></span>`;
+                buttons.forEach(btn => {
+                    if (btn.innerText.trim() === correctOpt) {
+                        btn.classList.add('correct-highlight');
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>
