@@ -1,15 +1,14 @@
 import os
 import json
-import google.generativeai as genai  # type: ignore
+from google import genai
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
-MODEL_NAME = "gemini-3.8-flash"
+MODEL_NAME = "gemini-2.5-flash"
 
 def clean_json_block(text: str) -> str:
     """Removes markdown code blocks to cleanly parse JSON."""
@@ -28,7 +27,6 @@ def generate_quiz(passage: str):
         return {"error": "Google Gemini API Key is missing or invalid. Please check your .env file."}
     
     try:
-        model = genai.GenerativeModel(MODEL_NAME)
         prompt = f"""
 Given the following passage, generate a quiz with exactly 3 multiple-choice questions (MCQs).
 Each question must have exactly 4 options.
@@ -45,7 +43,7 @@ Return the output STRICTLY in the following JSON format as a list of dictionarie
 Passage:
 {passage}
 """
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(model=MODEL_NAME, contents=prompt)
         cleaned_json = clean_json_block(response.text)
         quiz_data = json.loads(cleaned_json)
         return {"quiz": quiz_data}
