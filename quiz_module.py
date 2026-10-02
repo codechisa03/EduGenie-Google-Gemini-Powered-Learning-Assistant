@@ -9,7 +9,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
-MODEL_NAME = "gemini-flash-latest"
+MODEL_NAME = "gemini-3.8-flash"
 
 def clean_json_block(text: str) -> str:
     """Removes markdown code blocks to cleanly parse JSON."""

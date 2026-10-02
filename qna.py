@@ -9,7 +9,7 @@ if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
 # Using standard gemini-1.5-pro instead of the deprecated -latest
-MODEL_NAME = "gemini-flash-latest"
+MODEL_NAME = "gemini-3.8-flash"
 
 def ask_question(question: str) -> str:
     if not GEMINI_API_KEY or GEMINI_API_KEY == "your_gemini_api_key_here":
